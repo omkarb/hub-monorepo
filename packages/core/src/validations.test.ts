@@ -1548,3 +1548,71 @@ describe("validateSingleBody", () => {
     expect(result._unsafeUnwrapErr().message).toMatch("only one body can be set");
   });
 });
+
+describe("validateUsernameProofSignature", () => {
+  const name = "test.eth";
+  const owner = Factories.EthAddress.build();
+  const timestamp = Math.floor(Date.now() / 1000);
+
+  let proofL1: protobufs.UserNameProof;
+  let proofL2: protobufs.UserNameProof;
+  let ethSignature: Uint8Array;
+  let ethSignatureBase: Uint8Array;
+
+  beforeAll(async () => {
+    const claimL1 = makeUserNameProofClaim({
+      name,
+      owner: bytesToHexString(owner)._unsafeUnwrap(),
+      timestamp,
+    });
+
+    const claimL2 = { ...claimL1 };
+
+    ethSignature = (await ethSigner.signUserNameProofClaim(claimL1))._unsafeUnwrap();
+    ethSignatureBase = (await ethSigner.signUserNameProofClaim(claimL2))._unsafeUnwrap();
+
+    proofL1 = {
+      name: utf8StringToBytes(name)._unsafeUnwrap(),
+      owner,
+      timestamp,
+      signature: ethSignature,
+      type: UserNameType.USERNAME_TYPE_ENS_L1,
+      fid: Factories.Fid.build(),
+    };
+
+    proofL2 = {
+      ...proofL1,
+      signature: ethSignatureBase,
+      type: UserNameType.USERNAME_TYPE_ENS_L2,
+    };
+  });
+
+  test("succeeds with valid L1 signature", async () => {
+    const result = await validations.validateUsernameProofSignature(proofL1);
+    expect(result.isOk()).toBeTruthy();
+  });
+
+  test("succeeds with valid L2 signature", async () => {
+    const result = await validations.validateUsernameProofSignature(proofL2);
+    expect(result.isOk()).toBeTruthy();
+  });
+
+  test("fails with invalid signature", async () => {
+    const invalidProof = { ...proofL1, signature: Factories.Bytes.build() };
+    const result = await validations.validateUsernameProofSignature(invalidProof);
+    expect(result.isErr()).toBeTruthy();
+    if (result.isErr()) {
+      expect(result.error.message).toContain("invalid signature");
+    }
+  });
+
+  test("fails with wrong chain signature", async () => {
+    // Use L1 signature for L2 proof
+    const invalidProof = { ...proofL2, signature: ethSignature };
+    const result = await validations.validateUsernameProofSignature(invalidProof);
+    expect(result.isErr()).toBeTruthy();
+    if (result.isErr()) {
+      expect(result.error.message).toContain("invalid signature");
+    }
+  });
+});
