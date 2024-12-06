@@ -377,7 +377,8 @@ describe("username proof", () => {
   const messageTimestamp = toFarcasterTime(proofTimestamp * 1000)._unsafeUnwrap();
   const name = "test.eth";
 
-  let proof: protobufs.UserNameProof;
+  let proofL1: protobufs.UserNameProof;
+  let proofL2: protobufs.UserNameProof;
 
   beforeAll(async () => {
     const claim = makeUserNameProofClaim({
@@ -385,21 +386,45 @@ describe("username proof", () => {
       owner: bytesToHexString(ethSignerKey)._unsafeUnwrap(),
       timestamp: proofTimestamp,
     });
-    const signature = (await eip712Signer.signUserNameProofClaim(claim))._unsafeUnwrap();
-    expect(signature).toBeTruthy();
-    proof = {
+
+    const signature = (await ethSignerWallet.signMessage(claim))._unsafeUnwrap();
+    proofL1 = {
       timestamp: proofTimestamp,
       name: utf8StringToBytes(name)._unsafeUnwrap(),
       owner: ethSignerKey,
-      signature,
+      signature: hexStringToBytes(signature)._unsafeUnwrap(),
       fid,
       type: protobufs.UserNameType.USERNAME_TYPE_ENS_L1,
     };
+
+    proofL2 = {
+      ...proofL1,
+      type: protobufs.UserNameType.USERNAME_TYPE_BASE,
+    };
+  });
+
+  test("succeeds with valid L1 ENS proof", async () => {
+    const result = await builders.userNameProof(proofL1, messageTimestamp);
+    expect(result.isOk()).toBeTruthy();
+  });
+
+  test("succeeds with valid L2 ENS proof", async () => {
+    const result = await builders.userNameProof(proofL2, messageTimestamp);
+    expect(result.isOk()).toBeTruthy();
+  });
+
+  test("fails with invalid username type", async () => {
+    const invalidProof = { ...proofL1, type: protobufs.UserNameType.USERNAME_TYPE_FNAME };
+    const result = await builders.userNameProof(invalidProof, messageTimestamp);
+    expect(result.isErr()).toBeTruthy();
+    if (result.isErr()) {
+      expect(result.error.message).toContain("invalid username type");
+    }
   });
 
   describe("makeUsernameProofData", () => {
     test("succeeds", async () => {
-      const data = await builders.makeUsernameProofData(proof, { fid, network, timestamp: messageTimestamp });
+      const data = await builders.makeUsernameProofData(proofL1, { fid, network, timestamp: messageTimestamp });
       const isValid = await validations.validateMessageData(data._unsafeUnwrap());
       expect(isValid.isOk()).toBeTruthy();
     });
@@ -408,7 +433,7 @@ describe("username proof", () => {
   describe("makeUsernameProof", () => {
     test("succeeds", async () => {
       const message = await builders.makeUsernameProof(
-        proof,
+        proofL1,
         { fid, network, timestamp: messageTimestamp },
         ed25519Signer,
       );
