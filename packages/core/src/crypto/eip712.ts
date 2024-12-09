@@ -5,7 +5,7 @@ import { VerificationAddressClaim, VerificationAddressClaimEthereum } from "../v
 import { UserNameProofClaim } from "../userNameProof";
 import { defaultPublicClients, PublicClients } from "../eth/clients";
 import { CHAIN_IDS } from "../eth/chains";
-import { UserNameType } from "protobufs";
+import * as protobufs from "../protobufs";
 
 export const EIP_712_FARCASTER_DOMAIN = {
   name: "Farcaster Verify Ethereum Address",
@@ -162,9 +162,10 @@ export const verifyUserNameProofClaim = async (
   nameProof: UserNameProofClaim,
   signature: Uint8Array,
   address: Uint8Array,
-  type: UserNameType,
+  type: protobufs.UserNameType,
 ): HubAsyncResult<boolean> => {
-  const domain = type === UserNameType.USERNAME_TYPE_BASE ? EIP_712_USERNAME_DOMAIN_BASE : EIP_712_USERNAME_DOMAIN;
+  const domain =
+    type === protobufs.UserNameType.USERNAME_TYPE_BASE ? EIP_712_USERNAME_DOMAIN_BASE : EIP_712_USERNAME_DOMAIN;
 
   return ResultAsync.fromPromise(
     verifyTypedData({

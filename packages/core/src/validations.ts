@@ -886,36 +886,36 @@ export const validateVerificationRemoveBody = (
   }
 };
 
-export const validateUsernameProofSignature = async (
-  body: protobufs.UserNameProof,
-  publicClients: PublicClients = defaultPublicClients,
-): HubAsyncResult<Uint8Array> => {
-  if (body.signature.length > 2048) {
-    return err(new HubError("bad_request.validation_failure", "signature > 2048 bytes"));
-  }
+// export const validateUsernameProofSignature = async (
+//   body: protobufs.UserNameProof,
+//   publicClients: PublicClients = defaultPublicClients,
+// ): HubAsyncResult<Uint8Array> => {
+//   if (body.signature.length > 2048) {
+//     return err(new HubError("bad_request.validation_failure", "signature > 2048 bytes"));
+//   }
 
-  const nameResult = bytesToUtf8String(body.name);
-  if (nameResult.isErr()) {
-    return err(nameResult.error);
-  }
+//   const nameResult = bytesToUtf8String(body.name);
+//   if (nameResult.isErr()) {
+//     return err(nameResult.error);
+//   }
 
-  const claim = makeUserNameProofClaim({
-    name: nameResult.value,
-    owner: bytesToHexString(body.owner)._unsafeUnwrap(),
-    timestamp: body.timestamp,
-  });
+//   const claim = makeUserNameProofClaim({
+//     name: nameResult.value,
+//     owner: bytesToHexString(body.owner)._unsafeUnwrap(),
+//     timestamp: body.timestamp,
+//   });
 
-  const verificationResult = await eip712.verifyUserNameProofClaim(claim, body.signature, body.owner, body.type);
-  if (verificationResult.isErr()) {
-    return err(verificationResult.error);
-  }
+//   const verificationResult = await eip712.verifyUserNameProofClaim(claim, body.signature, body.owner, body.type);
+//   if (verificationResult.isErr()) {
+//     return err(verificationResult.error);
+//   }
 
-  if (!verificationResult.value) {
-    return err(new HubError("bad_request.validation_failure", "invalid signature"));
-  }
+//   if (!verificationResult.value) {
+//     return err(new HubError("bad_request.validation_failure", "invalid signature"));
+//   }
 
-  return ok(body.signature);
-};
+//   return ok(body.signature);
+// };
 
 export const validateUsernameProofBody = (
   body: protobufs.UserNameProof,
