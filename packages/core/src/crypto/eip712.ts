@@ -53,6 +53,7 @@ export const EIP_712_USERNAME_DOMAIN_BASE = {
   name: "Farcaster name verification",
   version: "1",
   chainId: 8453, // Base mainnet
+  verifyingContract: "0xe3be01d99baa8db9905b33a3ca391238234b79d1",
 } as const;
 
 export const EIP_712_USERNAME_PROOF = [

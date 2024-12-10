@@ -80,28 +80,57 @@ export const testEip712Signer = async (signer: Eip712Signer) => {
   describe("signUserNameProofClaim", () => {
     let claim: UserNameProofClaim;
     let signature: Uint8Array;
+    let baseNameClaim: UserNameProofClaim;
+    let baseNameSignature: Uint8Array;
 
     beforeAll(async () => {
+      // Regular .eth name claim
       claim = makeUserNameProofClaim({
-        name: "0x000",
+        name: "test.eth",
         timestamp: Math.floor(Date.now() / 1000),
         owner: bytesToHex(signerKey),
       });
       const signatureResult = await signer.signUserNameProofClaim(claim);
       expect(signatureResult.isOk()).toBeTruthy();
       signature = signatureResult._unsafeUnwrap();
+
+      // Base name claim
+      baseNameClaim = makeUserNameProofClaim({
+        name: "test.base.eth",
+        timestamp: Math.floor(Date.now() / 1000),
+        owner: bytesToHex(signerKey),
+      });
+      const baseSignatureResult = await signer.signUserNameProofClaim(baseNameClaim);
+      expect(baseSignatureResult.isOk()).toBeTruthy();
+      baseNameSignature = baseSignatureResult._unsafeUnwrap();
     });
 
-    test("succeeds", async () => {
+    test("succeeds with .eth name", async () => {
       const valid = await eip712.verifyUserNameProofClaim(claim, signature, signerKey);
       expect(valid).toEqual(ok(true));
     });
 
-    test("succeeds when encoding twice", async () => {
+    test("succeeds with .base.eth name", async () => {
+      const valid = await eip712.verifyUserNameProofClaim(baseNameClaim, baseNameSignature, signerKey);
+      expect(valid).toEqual(ok(true));
+    });
+
+    test("succeeds when encoding .eth name twice", async () => {
       const claim2: UserNameProofClaim = { ...claim };
       const signature2 = await signer.signUserNameProofClaim(claim2);
       expect(signature2).toEqual(ok(signature));
       expect(bytesToHexString(signature2._unsafeUnwrap())).toEqual(bytesToHexString(signature));
+    });
+
+    test("succeeds when encoding .base.eth name twice", async () => {
+      const claim2: UserNameProofClaim = { ...baseNameClaim };
+      const signature2 = await signer.signUserNameProofClaim(claim2);
+      expect(signature2).toEqual(ok(baseNameSignature));
+      expect(bytesToHexString(signature2._unsafeUnwrap())).toEqual(bytesToHexString(baseNameSignature));
+    });
+
+    test("generates different signatures for .eth and .base.eth", async () => {
+      expect(bytesToHexString(signature)).not.toEqual(bytesToHexString(baseNameSignature));
     });
 
     test("fails with HubError", async () => {
