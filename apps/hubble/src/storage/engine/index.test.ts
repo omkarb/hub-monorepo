@@ -789,6 +789,29 @@ describe("mergeMessage", () => {
       );
     };
 
+    const createBasenameProof = async (name: string, timestamp?: number | null, owner?: string | null) => {
+      // Proof time is in Unix seconds and should match the message time which is in Farcaster milliseconds
+      const timestampSec = Math.floor((timestamp || Date.now()) / 1000);
+      const ownerAsBytes = owner ? hexStringToBytes(owner)._unsafeUnwrap() : Factories.EthAddress.build();
+      return await Factories.UsernameProofMessage.create(
+        {
+          data: {
+            fid,
+            usernameProofBody: Factories.UserNameProof.build({
+              name: utf8StringToBytes(name)._unsafeUnwrap(),
+              fid,
+              owner: ownerAsBytes,
+              timestamp: timestampSec,
+              type: UserNameType.USERNAME_TYPE_BASE,
+            }),
+            timestamp: toFarcasterTime(timestampSec * 1000)._unsafeUnwrap(),
+            type: MessageType.USERNAME_PROOF,
+          },
+        },
+        { transient: { signer, nameType: "BASE" } },
+      );
+    };
+
     test("fails when not a valid ens name", async () => {
       const result = await engine.mergeMessage(await createProof("no_dot_eth"));
       expect(result).toMatchObject(err({ errCode: "bad_request.validation_failure" }));
@@ -837,6 +860,20 @@ describe("mergeMessage", () => {
         return Promise.resolve(custodyAddress);
       });
       const message = await createProof("test.eth", null, custodyAddress);
+      const result = await engine.mergeMessage(message);
+      expect(result.isOk()).toBeTruthy();
+
+      expect(usernameProofEvents.length).toBe(1);
+      expect(usernameProofEvents[0]?.usernameProof).toMatchObject(message.data.usernameProofBody);
+      expect(usernameProofEvents[0]?.deletedUsernameProof).toBeUndefined();
+    });
+
+    test("succeeds for valid proof for custody address", async () => {
+      const custodyAddress = bytesToHexString(custodyEvent.idRegisterEventBody.to)._unsafeUnwrap();
+      jest.spyOn(publicClient, "getEnsAddress").mockImplementation(() => {
+        return Promise.resolve(custodyAddress);
+      });
+      const message = await createBasenameProof("test.base.eth", null, custodyAddress);
       const result = await engine.mergeMessage(message);
       expect(result.isOk()).toBeTruthy();
 

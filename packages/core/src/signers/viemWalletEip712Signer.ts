@@ -6,6 +6,7 @@ import {
   EIP_712_FARCASTER_DOMAIN,
   MESSAGE_DATA_EIP_712_TYPES,
   USERNAME_PROOF_EIP_712_TYPES,
+  USERNAME_PROOF_EIP_712_TYPES_BASE,
 } from "../crypto/eip712";
 import { HubAsyncResult, HubError } from "../errors";
 import { VerificationAddressClaim } from "../verifications";
@@ -69,8 +70,10 @@ export class ViemWalletEip712Signer extends Eip712Signer {
   }
 
   public async signUserNameProofClaim(userNameProof: UserNameProofClaim): HubAsyncResult<Uint8Array> {
+    const isBaseName = userNameProof.name.endsWith(".base.eth");
+    const domain = isBaseName ? USERNAME_PROOF_EIP_712_TYPES_BASE : USERNAME_PROOF_EIP_712_TYPES;
     return this._signTypedData({
-      ...USERNAME_PROOF_EIP_712_TYPES,
+      ...domain,
       primaryType: "UserNameProof",
       message: userNameProof,
     });

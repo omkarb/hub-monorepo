@@ -82,9 +82,12 @@ export class EthersV5Eip712Signer extends Eip712Signer {
   }
 
   public async signUserNameProofClaim(usernameProof: UserNameProofClaim): HubAsyncResult<Uint8Array> {
+    const isBaseName = usernameProof.name.endsWith(".base.eth");
+    const domain = isBaseName ? eip712.EIP_712_USERNAME_DOMAIN_BASE : eip712.EIP_712_USERNAME_DOMAIN;
+
     const hexSignature = await ResultAsync.fromPromise(
       this._typedDataSigner._signTypedData(
-        eip712.EIP_712_USERNAME_DOMAIN,
+        domain,
         { UserNameProof: [...eip712.EIP_712_USERNAME_PROOF] },
         usernameProof,
       ),

@@ -13,9 +13,25 @@ const account = privateKeyToAccount(privateKey);
 const signer = new ViemLocalEip712Signer(account);
 
 describe("verifyUserNameProofClaim", () => {
-  test("succeeds with a generated proof", async () => {
+  test("succeeds with a generated .eth proof", async () => {
     const nameProof = makeUserNameProofClaim({
-      name: "farcaster",
+      name: "farcaster.eth",
+      owner: "0x8773442740c17c9d0f0b87022c722f9a136206ed",
+      timestamp: 1628882891,
+    });
+    const signature = await signer.signUserNameProofClaim(nameProof);
+    expect(signature.isOk()).toBeTruthy();
+    const valid = await eip712.verifyUserNameProofClaim(
+      nameProof,
+      signature._unsafeUnwrap(),
+      (await signer.getSignerKey())._unsafeUnwrap(),
+    );
+    expect(valid).toEqual(ok(true));
+  });
+
+  test("succeeds with a generated .base.eth proof", async () => {
+    const nameProof = makeUserNameProofClaim({
+      name: "farcaster.base.eth",
       owner: "0x8773442740c17c9d0f0b87022c722f9a136206ed",
       timestamp: 1628882891,
     });
@@ -45,6 +61,30 @@ describe("verifyUserNameProofClaim", () => {
       hexStringToBytes("0xBc5274eFc266311015793d89E9B591fa46294741")._unsafeUnwrap(),
     );
     expect(valid).toEqual(ok(true));
+  });
+
+  test("fails when using .eth signature for .base.eth name", async () => {
+    // Create a .eth name proof
+    const ethNameProof = makeUserNameProofClaim({
+      name: "test.eth",
+      owner: "0x8773442740c17c9d0f0b87022c722f9a136206ed",
+      timestamp: 1628882891,
+    });
+    const ethSignature = await signer.signUserNameProofClaim(ethNameProof);
+    expect(ethSignature.isOk()).toBeTruthy();
+
+    // Try to use the .eth signature for a .base.eth name
+    const baseNameProof = makeUserNameProofClaim({
+      name: "test.base.eth",
+      owner: "0x8773442740c17c9d0f0b87022c722f9a136206ed",
+      timestamp: 1628882891,
+    });
+    const valid = await eip712.verifyUserNameProofClaim(
+      baseNameProof,
+      ethSignature._unsafeUnwrap(),
+      (await signer.getSignerKey())._unsafeUnwrap(),
+    );
+    expect(valid).toEqual(ok(false));
   });
 });
 

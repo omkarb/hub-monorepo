@@ -78,9 +78,10 @@ const FnameFactory = Factory.define<Uint8Array>(() => {
   return bytes;
 });
 
-const EnsNameFactory = Factory.define<Uint8Array>(() => {
+const EnsNameFactory = Factory.define<Uint8Array, { nameType?: "Basename" | "ENS_L1" }>(({ transientParams }) => {
   const ensName = faker.random.alphaNumeric(faker.datatype.number({ min: 3, max: 16 }));
-  return utf8StringToBytes(ensName.concat(".eth"))._unsafeUnwrap();
+  const suffix = transientParams.nameType === "Basename" ? ".base.eth" : ".eth";
+  return utf8StringToBytes(ensName.concat(suffix))._unsafeUnwrap();
 });
 
 /** Eth */
@@ -667,32 +668,41 @@ const UserDataAddMessageFactory = Factory.define<protobufs.UserDataAddMessage, {
   },
 );
 
-const UsernameProofDataFactory = Factory.define<protobufs.UsernameProofData>(() => {
-  const proofBody = UserNameProofFactory.build({
-    type: UserNameType.USERNAME_TYPE_ENS_L1,
-    name: EnsNameFactory.build(),
-  });
-  return MessageDataFactory.build({
-    usernameProofBody: proofBody,
-    type: protobufs.MessageType.USERNAME_PROOF,
-    // Proof timestamp is in Unix seconds
-    timestamp: toFarcasterTime(proofBody.timestamp * 1000)._unsafeUnwrap(),
-    fid: proofBody.fid,
-  }) as protobufs.UsernameProofData;
-});
-
-const UsernameProofMessageFactory = Factory.define<protobufs.UsernameProofMessage, { signer?: Ed25519Signer }>(
-  ({ onCreate, transientParams }) => {
-    onCreate((message) => {
-      return MessageFactory.create(message, { transient: transientParams }) as Promise<protobufs.UsernameProofMessage>;
+const UsernameProofDataFactory = Factory.define<protobufs.UsernameProofData, { nameType?: "ENS_L1" | "BASE" }>(
+  ({ transientParams }) => {
+    const proofBody = UserNameProofFactory.build({
+      type: transientParams.nameType === "BASE" ? UserNameType.USERNAME_TYPE_BASE : UserNameType.USERNAME_TYPE_ENS_L1,
+      name: EnsNameFactory.build(
+        {},
+        { transient: { nameType: transientParams.nameType === "BASE" ? "Basename" : "ENS_L1" } },
+      ),
     });
 
-    return MessageFactory.build(
-      { data: UsernameProofDataFactory.build(), signatureScheme: protobufs.SignatureScheme.ED25519 },
-      { transient: transientParams },
-    ) as protobufs.UsernameProofMessage;
+    return MessageDataFactory.build({
+      usernameProofBody: proofBody,
+      type: protobufs.MessageType.USERNAME_PROOF,
+      timestamp: toFarcasterTime(proofBody.timestamp * 1000)._unsafeUnwrap(),
+      fid: proofBody.fid,
+    }) as protobufs.UsernameProofData;
   },
 );
+
+const UsernameProofMessageFactory = Factory.define<
+  protobufs.UsernameProofMessage,
+  { signer?: Ed25519Signer; nameType?: "ENS_L1" | "BASE" }
+>(({ onCreate, transientParams, params }) => {
+  onCreate((message) => {
+    return MessageFactory.create(message, { transient: transientParams }) as Promise<protobufs.UsernameProofMessage>;
+  });
+
+  return MessageFactory.build(
+    {
+      data: UsernameProofDataFactory.build({}, { transient: { nameType: transientParams?.nameType } }),
+      signatureScheme: protobufs.SignatureScheme.ED25519,
+    },
+    { transient: transientParams },
+  ) as protobufs.UsernameProofMessage;
+});
 
 const FrameActionBodyFactory = Factory.define<protobufs.FrameActionBody>(() => {
   return protobufs.FrameActionBody.create({

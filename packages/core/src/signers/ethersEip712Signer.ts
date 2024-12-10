@@ -10,6 +10,7 @@ import {
   EIP_712_FARCASTER_MESSAGE_DATA,
   EIP_712_FARCASTER_VERIFICATION_CLAIM,
   EIP_712_USERNAME_DOMAIN,
+  EIP_712_USERNAME_DOMAIN_BASE,
   EIP_712_USERNAME_PROOF,
 } from "../crypto/eip712";
 import {
@@ -84,12 +85,11 @@ export class EthersEip712Signer extends Eip712Signer {
   }
 
   public async signUserNameProofClaim(userNameProof: UserNameProofClaim): HubAsyncResult<Uint8Array> {
+    const isBaseName = userNameProof.name.endsWith(".base.eth");
+    const domain = isBaseName ? EIP_712_USERNAME_DOMAIN_BASE : EIP_712_USERNAME_DOMAIN;
+
     const hexSignature = await ResultAsync.fromPromise(
-      this._ethersSigner.signTypedData(
-        EIP_712_USERNAME_DOMAIN,
-        { UserNameProof: [...EIP_712_USERNAME_PROOF] },
-        userNameProof,
-      ),
+      this._ethersSigner.signTypedData(domain, { UserNameProof: [...EIP_712_USERNAME_PROOF] }, userNameProof),
       (e) => new HubError("bad_request.invalid_param", e as Error),
     );
 
