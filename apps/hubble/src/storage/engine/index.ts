@@ -1378,23 +1378,26 @@ class Engine extends TypedEmitter<EngineEvents> {
     if (nameResult.isErr() || !nameResult.value.endsWith(".eth")) {
       return err(new HubError("bad_request.validation_failure", `invalid ens name: ${nameProof.name}`));
     }
-    let resolvedAddress;
-    let resolvedAddressString;
-    try {
-      // Use the appropriate client based on the username type
-      const client = nameProof.type === UserNameType.USERNAME_TYPE_BASE ? this._l2PublicClient : this._publicClient;
-      if (!client) {
-        return err(new HubError("unavailable.network_failure", "no client available for ENS resolution"));
-      }
-      resolvedAddressString = await client.getEnsAddress({ name: normalize(nameResult.value) });
-      const resolvedAddressBytes = hexStringToBytes(resolvedAddressString || "");
-      if (resolvedAddressBytes.isErr() || resolvedAddressBytes.value.length === 0) {
-        return err(new HubError("bad_request.validation_failure", `no valid address for ${nameResult.value}`));
-      }
-      resolvedAddress = resolvedAddressBytes.value;
-    } catch (e) {
-      return err(new HubError("unavailable.network_failure", `failed to resolve ens name ${nameResult.value}: ${e}`));
+    // Use the appropriate client based on the username type
+    const client = nameProof.type === UserNameType.USERNAME_TYPE_BASE ? this._l2PublicClient : this._publicClient;
+    if (!client) {
+      return err(new HubError("unavailable.network_failure", "no client available for ENS resolution"));
     }
+    const resolvedAddressResult = await ResultAsync.fromPromise(
+      client.getEnsAddress({ name: normalize(nameResult.value) }),
+      (e) => new HubError("unavailable.network_failure", `failed to resolve ens name ${nameResult.value}: ${e}`),
+    );
+
+    if (resolvedAddressResult.isErr()) {
+      return err(resolvedAddressResult.error);
+    }
+
+    const resolvedAddressString = resolvedAddressResult.value;
+    const resolvedAddressBytes = hexStringToBytes(resolvedAddressString || "");
+    if (resolvedAddressBytes.isErr() || resolvedAddressBytes.value.length === 0) {
+      return err(new HubError("bad_request.validation_failure", `no valid address for ${nameResult.value}`));
+    }
+    const resolvedAddress = resolvedAddressBytes.value;
 
     if (bytesCompare(resolvedAddress, nameProof.owner) !== 0) {
       return err(
