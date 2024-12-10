@@ -67,6 +67,11 @@ export const USERNAME_PROOF_EIP_712_TYPES = {
   types: { UserNameProof: EIP_712_USERNAME_PROOF },
 } as const;
 
+export const USERNAME_PROOF_EIP_712_TYPES_BASE = {
+  domain: EIP_712_USERNAME_DOMAIN_BASE,
+  types: { UserNameProof: EIP_712_USERNAME_PROOF },
+} as const;
+
 export const MESSAGE_DATA_EIP_712_TYPES = {
   domain: EIP_712_FARCASTER_DOMAIN,
   types: { MessageData: EIP_712_FARCASTER_MESSAGE_DATA },
@@ -157,10 +162,13 @@ export const verifyUserNameProofClaim = async (
   signature: Uint8Array,
   address: Uint8Array,
 ): HubAsyncResult<boolean> => {
+  const isBaseName = nameProof.name.endsWith(".base.eth");
+  const domain = isBaseName ? EIP_712_USERNAME_DOMAIN_BASE : EIP_712_USERNAME_DOMAIN;
+
   const valid = await ResultAsync.fromPromise(
     verifyTypedData({
       address: bytesToHex(address),
-      domain: EIP_712_USERNAME_DOMAIN,
+      domain,
       types: { UserNameProof: EIP_712_USERNAME_PROOF },
       primaryType: "UserNameProof",
       message: nameProof,

@@ -1135,8 +1135,8 @@ export const validateEnsName = <T extends string | Uint8Array>(ensNameP?: T | nu
     return err(new HubError("bad_request.validation_failure", `ensName "${ensName}" is not a valid ENS name`));
   }
 
-  if (!ensName.endsWith(".eth") && !ensName.endsWith(".base.eth")) {
-    return err(new HubError("bad_request.validation_failure", `ensName "${ensName}" must end with .eth or .base.eth`));
+  if (!ensName.endsWith(".eth")) {
+    return err(new HubError("bad_request.validation_failure", `ensName "${ensName}" doesn't end with .eth`));
   }
 
   const nameParts = ensName.split(".");
@@ -1144,9 +1144,8 @@ export const validateEnsName = <T extends string | Uint8Array>(ensNameP?: T | nu
 
   // For .base.eth, we expect 3 parts (name.base.eth), for .eth we expect 2 parts (name.eth)
   const expectedParts = isBaseName ? 3 : 2;
-
   if (nameParts[0] === undefined || nameParts.length !== expectedParts || (isBaseName && nameParts[1] !== "base")) {
-    return err(new HubError("bad_request.validation_failure", `ensName "${ensName}" has invalid format`));
+    return err(new HubError("bad_request.validation_failure", `ensName "${ensName}" unsupported subdomain`));
   }
 
   if (ensName.length > USERNAME_MAX_LENGTH) {
